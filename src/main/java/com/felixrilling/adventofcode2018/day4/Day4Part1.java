@@ -12,6 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("Duplicates")
 public class Day4Part1 {
     public static void main(String[] args) {
         System.out.println(new GuardSleepAnalyzer(AdventOfCodeUtils.getInput("day4/input.txt")).calculate());
@@ -32,7 +33,9 @@ public class Day4Part1 {
                 .collect(Collectors.toList());
             List<GuardShift> guardShifts = GuardShift.ofLogEntries(guardLogEntries);
             int sleepiestGuardId = findSleepiestGuard(guardShifts);
-            int sleepiestTime = findSleepiestTimeByGuard(sleepiestGuardId, guardShifts);
+            int sleepiestTime = findSleepiestTime(guardShifts.stream()
+                .filter(shift -> shift.getGuardId() == sleepiestGuardId)
+                .collect(Collectors.toList()));
 
             return sleepiestGuardId * sleepiestTime;
         }
@@ -53,13 +56,9 @@ public class Day4Part1 {
             return guardSleepAmount.entrySet().stream().max(Comparator.comparing(Map.Entry::getValue)).orElseThrow().getKey();
         }
 
-        private Integer findSleepiestTimeByGuard(int guardId, List<GuardShift> guardShifts) {
-            List<GuardShift> sleepiestGuardShifts = guardShifts.stream()
-                .filter(shift -> shift.getGuardId() == guardId)
-                .collect(Collectors.toList());
-
+        private Integer findSleepiestTime(List<GuardShift> guardShifts) {
             Map<Integer, Integer> minutesBySleep = new HashMap<>();
-            for (GuardShift shift : sleepiestGuardShifts) {
+            for (GuardShift shift : guardShifts) {
                 for (GuardNap nap : shift.getNaps()) {
                     int napStartMin = Date.from(nap.getNapStart()).getMinutes();
                     int napEndMin = Date.from(nap.getNapEnd()).getMinutes();
@@ -79,36 +78,18 @@ public class Day4Part1 {
      * GuardLogEntry
      */
     private static class GuardLogEntry {
-        private final Instant timestamp;
-        private final Action action;
-        private final Integer guardId;
-
-        enum Action {
-            BEGINS_SHIFT, WAKES_UP, FALLS_ASLEEP
-        }
-
         private static final Pattern PATTERN_BEGINS_SHIFT = Pattern.compile("Guard #(.+) begins shift");
         private static final Pattern PATTERN_WAKES_UP = Pattern.compile("wakes up");
         private static final Pattern PATTERN_FALLS_ASLEEP = Pattern.compile("falls asleep");
         private static final Pattern PATTERN_TIMESTAMP = Pattern.compile("\\[(.+)]");
         private static final String FORMAT_TIMESTAMP = "yyyy-MM-dd kk:mm";
-
+        private final Instant timestamp;
+        private final Action action;
+        private final Integer guardId;
         GuardLogEntry(Instant timestamp, Action action, Integer guardId) {
             this.timestamp = timestamp;
             this.action = action;
             this.guardId = guardId;
-        }
-
-        Instant getTimestamp() {
-            return timestamp;
-        }
-
-        Action getAction() {
-            return action;
-        }
-
-        Integer getGuardId() {
-            return guardId;
         }
 
         static GuardLogEntry ofLine(String line) {
@@ -141,6 +122,22 @@ public class Day4Part1 {
             }
             return timestamp.toInstant();
         }
+
+        Instant getTimestamp() {
+            return timestamp;
+        }
+
+        Action getAction() {
+            return action;
+        }
+
+        Integer getGuardId() {
+            return guardId;
+        }
+
+        enum Action {
+            BEGINS_SHIFT, WAKES_UP, FALLS_ASLEEP
+        }
     }
 
     /**
@@ -148,40 +145,10 @@ public class Day4Part1 {
      */
     private static class GuardShift {
         private Integer guardId;
-        private Instant shiftStart;
-        private Instant shiftEnd;
-        private List<GuardNap> naps;
+        private final List<GuardNap> naps;
 
         GuardShift() {
             naps = new ArrayList<>();
-        }
-
-        Integer getGuardId() {
-            return guardId;
-        }
-
-        void setGuardId(Integer guardId) {
-            this.guardId = guardId;
-        }
-
-        public Instant getShiftStart() {
-            return shiftStart;
-        }
-
-        void setShiftStart(Instant shiftStart) {
-            this.shiftStart = shiftStart;
-        }
-
-        public Instant getShiftEnd() {
-            return shiftEnd;
-        }
-
-        void setShiftEnd(Instant shiftEnd) {
-            this.shiftEnd = shiftEnd;
-        }
-
-        public List<GuardNap> getNaps() {
-            return naps;
         }
 
         static List<GuardShift> ofLogEntries(List<GuardLogEntry> logEntries) {
@@ -192,14 +159,12 @@ public class Day4Part1 {
             for (GuardLogEntry entry : logEntries) {
                 if (entry.getAction() == GuardLogEntry.Action.BEGINS_SHIFT) {
                     if (guardShift != null) {
-                        guardShift.setShiftEnd(entry.getTimestamp());
                         result.add(guardShift);
                     }
                     napStart = null;
                     guardShift = new GuardShift();
 
                     guardShift.setGuardId(entry.getGuardId());
-                    guardShift.setShiftStart(entry.getTimestamp());
                 } else if (entry.getAction() == GuardLogEntry.Action.FALLS_ASLEEP) {
                     napStart = entry.getTimestamp();
                 } else if (entry.getAction() == GuardLogEntry.Action.WAKES_UP) {
@@ -215,6 +180,18 @@ public class Day4Part1 {
             result.add(guardShift);
 
             return result;
+        }
+
+        Integer getGuardId() {
+            return guardId;
+        }
+
+        void setGuardId(Integer guardId) {
+            this.guardId = guardId;
+        }
+
+        List<GuardNap> getNaps() {
+            return naps;
         }
     }
 
